@@ -103,8 +103,8 @@ struct ControlDeckView: View {
 
     private var powerBank: some View {
         LatchButton(
-            title: "POWER",
-            subtitle: controller.isPresetActive ? "OLED ON" : "OLED OFF",
+            title: "OLED MODE",
+            subtitle: controller.isPresetActive ? "ON" : "OFF",
             isLatched: controller.isPresetActive,
             isPower: true,
             action: { controller.togglePower() }
@@ -166,14 +166,11 @@ struct ControlDeckView: View {
     }
 
     private var footer: some View {
-        HStack {
-            Circle()
-                .fill(controller.automationDenied ? DeckTheme.danger : DeckTheme.amber)
-                .frame(width: 6, height: 6)
-                .shadow(
-                    color: (controller.automationDenied ? DeckTheme.danger : DeckTheme.amber).opacity(0.8),
-                    radius: 4
-                )
+        HStack(spacing: 8) {
+            StatusLED(
+                isOn: controller.isPresetActive,
+                isError: controller.automationDenied
+            )
             Text(controller.footerText)
                 .font(DeckTheme.hudFont(9, weight: .bold))
                 .tracking(1.1)

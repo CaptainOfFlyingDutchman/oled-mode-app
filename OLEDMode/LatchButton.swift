@@ -13,7 +13,7 @@ struct LatchButton: View {
             VStack(spacing: isPower ? 6 : 2) {
                 Text(title)
                     .font(DeckTheme.hudFont(isPower ? 18 : 11, weight: .heavy))
-                    .tracking(isPower ? 4 : 0.8)
+                    .tracking(isPower ? 2.4 : 0.8)
                 if let subtitle {
                     Text(subtitle)
                         .font(DeckTheme.hudFont(isPower ? 12 : 8, weight: .bold))
@@ -113,6 +113,7 @@ struct LatchButtonStyle: ButtonStyle {
 struct StatusLED: View {
     var isOn: Bool
     var isOffline: Bool = false
+    var isError: Bool = false
 
     var body: some View {
         ZStack {
@@ -122,7 +123,7 @@ struct StatusLED: View {
             Circle()
                 .fill(ledColor)
                 .frame(width: 8, height: 8)
-                .shadow(color: ledColor.opacity(isOn && !isOffline ? 0.9 : 0), radius: 6)
+                .shadow(color: glowColor, radius: 6)
         }
         .overlay(
             Circle()
@@ -131,7 +132,14 @@ struct StatusLED: View {
     }
 
     private var ledColor: Color {
+        if isError { return DeckTheme.danger }
         if isOffline { return DeckTheme.textDim.opacity(0.4) }
         return isOn ? DeckTheme.amber : DeckTheme.textDim.opacity(0.35)
+    }
+
+    private var glowColor: Color {
+        if isError { return DeckTheme.danger.opacity(0.9) }
+        if isOn && !isOffline { return DeckTheme.amber.opacity(0.9) }
+        return .clear
     }
 }
