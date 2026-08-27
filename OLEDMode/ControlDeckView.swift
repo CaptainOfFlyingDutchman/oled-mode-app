@@ -30,10 +30,10 @@ struct ControlDeckView: View {
             footer
         }
         .padding(.horizontal, 22)
-        .padding(.top, 16)
+        .padding(.top, 0)
         .padding(.bottom, 16)
         .frame(width: 448)
-        .fixedSize()
+        .fixedSize(horizontal: true, vertical: true)
         .background {
             ZStack {
                 chassis
@@ -41,8 +41,8 @@ struct ControlDeckView: View {
             }
         }
         .background(DeckSizeReporter())
+        .ignoresSafeArea(.container, edges: .top)
         .preferredColorScheme(.dark)
-        .background(WindowAccessor())
         .onAppear { controller.refresh() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             controller.refresh()
@@ -68,13 +68,13 @@ struct ControlDeckView: View {
     private var header: some View {
         HStack(alignment: .center, spacing: 8) {
             Color.clear
-                .frame(width: 58, height: 1)
+                .frame(width: 56, height: 1)
             Text("◈")
-                .font(DeckTheme.hudFont(16, weight: .bold))
+                .font(DeckTheme.hudFont(13, weight: .bold))
                 .foregroundStyle(DeckTheme.amber)
             Text("OLED MODE")
-                .font(DeckTheme.hudFont(16, weight: .heavy))
-                .tracking(3)
+                .font(DeckTheme.hudFont(13, weight: .heavy))
+                .tracking(2.4)
                 .foregroundStyle(DeckTheme.text)
             Spacer()
             Text("SYS.01")
@@ -82,6 +82,7 @@ struct ControlDeckView: View {
                 .tracking(1.4)
                 .foregroundStyle(DeckTheme.textDim)
         }
+        .frame(height: 28)
     }
 
     private var goldRule: some View {
