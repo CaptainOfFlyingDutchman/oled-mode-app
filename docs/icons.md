@@ -85,19 +85,78 @@ The product is `build/Build/Products/Debug/OLED Mode.app`. A Release build lands
 
 ## Dock still shows the old icon
 
-macOS caches app icons. After a rebuild:
+macOS caches Dock tiles by **bundle ID** (`com.local.oled-mode`). `killall Dock` alone is usually not enough. The running tile is also the icon from **process launch**, so a long-lived Xcode Run keeps the old mark until that process dies.
 
-1. Quit OLED Mode.
-2. Open the newly built `.app` (not a stale copy in `/Applications`).
-3. If the Dock tile is still old:
+There are often several copies of the same app. Launch Services / Dock may keep showing whichever one launched first:
+
+| Copy | Typical source |
+|---|---|
+| `~/Applications/OLED Mode.app` | Installed / copied app (what you usually pin) |
+| `build/Build/Products/Debug/OLED Mode.app` | `xcodebuild -derivedDataPath build` |
+| `~/Library/Developer/Xcode/DerivedData/OLEDMode-*/Build/Products/Debug/OLED Mode.app` | Product ▸ Run in Xcode |
+
+Confirm which process owns the tile:
 
 ```bash
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
-  -f "build/Build/Products/Debug/OLED Mode.app"
-killall Dock
+pgrep -lf "OLED Mode"
 ```
 
-`killall Dock` restarts the Dock in about a second.
+### 1. Quit every copy
+
+If you launched with **Product ▸ Run** in Xcode, stop that session first (**Product ▸ Stop**, or ⌘.). The debugger holds the process; `killall` often cannot kill it, and that live Dock tile keeps the old icon.
+
+Then:
+
+```bash
+killall "OLED Mode" 2>/dev/null || true
+killall -9 "OLED Mode" 2>/dev/null || true
+pgrep -lf "OLED Mode" || echo "all copies quit"
+```
+
+If `pgrep` still shows a path under `DerivedData`, Xcode is still attached — stop the Run session and repeat.
+
+### 2. Flush the user Dock + Icon Services caches
+
+No sudo. This deletes only your user’s caches under `/var/folders/.../C/`.
+
+```bash
+CACHE="$(getconf DARWIN_USER_CACHE_DIR)"
+rm -rf "${CACHE}com.apple.dock.iconcache" \
+       "${CACHE}com.apple.iconservices"
+```
+
+### 3. Re-register the bundle you actually launch
+
+```bash
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+
+APP="$HOME/Applications/OLED Mode.app"   # or the Debug .app you just built
+touch "$APP" "$APP/Contents/Info.plist" "$APP/Contents/Resources/AppIcon.icns"
+"$LSREGISTER" -f "$APP"
+
+killall Dock
+open "$APP"
+```
+
+`killall Dock` restarts the Dock in about a second. The new tile should appear when the app relaunches.
+
+### 4. Still stuck — system Icon Services store
+
+Only if step 2 did not change the tile. This rebuilds icons for **all** apps, so the Dock and Finder flicker while caches come back.
+
+```bash
+sudo rm -rf /Library/Caches/com.apple.iconservices.store
+killall Dock
+killall Finder
+```
+
+Do **not** run `lsregister -kill`. On Sequoia and later it can wipe System Settings contents.
+
+Do **not** `find /private/var/folders ... -exec rm` as a broad sweep. The `getconf DARWIN_USER_CACHE_DIR` paths above are the safe, user-scoped equivalents of `com.apple.dock.iconcache` and `com.apple.iconservices`.
+
+### 5. Last resort
+
+Log out and back in, or reboot. Icon Services rebuilds on a full session restart. If two copies are running at once (`pgrep` shows both DerivedData and `~/Applications`), quit them and open only one.
 
 ## How to change the look
 
@@ -125,9 +184,19 @@ cp /path/to/new-icon.png scripts/oled-mode-icon-1024.png
 # 2. Expand into the asset catalog
 swift scripts/GenerateIcon.swift OLEDMode/Assets.xcassets/AppIcon.appiconset
 
-# 3. Rebuild and launch
+# 3. Stop Xcode’s Run session (Product ▸ Stop / ⌘.) so the debugger
+#    is not holding an old Dock tile, then quit every remaining copy.
 killall "OLED Mode" 2>/dev/null || true
+
+# 4. Rebuild
 xcodebuild -project OLEDMode.xcodeproj -scheme "OLED Mode" \
   -configuration Debug -derivedDataPath build
+
+# 5. Flush Dock icon cache and relaunch one copy
+CACHE="$(getconf DARWIN_USER_CACHE_DIR)"
+rm -rf "${CACHE}com.apple.dock.iconcache" "${CACHE}com.apple.iconservices"
+killall Dock
 open "build/Build/Products/Debug/OLED Mode.app"
 ```
+
+If the tile is still old, follow [Dock still shows the old icon](#dock-still-shows-the-old-icon).
