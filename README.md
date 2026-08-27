@@ -28,7 +28,7 @@ The window is a dark chassis on purpose. It should be findable on a black wallpa
 | Control | What it does |
 |---|---|
 | **POWER** | Apply or restore the OLED preset |
-| **NEVER / FULL SCR / DESKTOP / ALWAYS** | Menu bar hide mode (macOS’s four states) |
+| **NEVER / FULL SCR / DESKTOP / ALWAYS** | Menu bar hide mode (macOS's four states) |
 | **DOCK HIDE** | Dock auto-hide |
 | **STAGE STRIP HIDE** | Stage Manager recent-apps strip |
 
@@ -36,9 +36,26 @@ First launch will ask to control **System Events**. Allow that, or the keys cann
 
 ## Build
 
-Open `OLEDMode.xcodeproj` in Xcode and run the **OLED Mode** scheme, or build Release and copy `OLED Mode.app` to `~/Applications`.
-
 macOS 15 or later. Unsigned local build; no App Store account required.
+
+Xcode's Play button runs a copy under DerivedData. It does **not** install into `~/Applications`. After you clone, build Release and copy the `.app` with `ditto` (not `cp -R`). `ditto` is a macOS tool that copies an app bundle with the metadata Finder and Launch Services expect.
+
+```bash
+git clone <this-repo> oled-mode-app
+cd oled-mode-app
+
+xcodebuild -project OLEDMode.xcodeproj -scheme "OLED Mode" \
+  -configuration Release -derivedDataPath ./build \
+  CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=YES
+
+mkdir -p "$HOME/Applications"
+ditto "build/Build/Products/Release/OLED Mode.app" \
+  "$HOME/Applications/OLED Mode.app"
+
+open "$HOME/Applications/OLED Mode.app"
+```
+
+Then launch from Spotlight or `~/Applications`. First run may ask to open an unsigned app; choose Open.
 
 ## License
 
