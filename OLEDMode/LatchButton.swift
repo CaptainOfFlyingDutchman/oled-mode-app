@@ -90,7 +90,8 @@ private struct LatchChrome: View {
 
     private func face(sunk: Bool, hovering: Bool) -> some View {
         let radius: CGFloat = isPower ? 18 : 8
-        return RoundedRectangle(cornerRadius: radius, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        return shape
             .fill(
                 LinearGradient(
                     colors: sunk
@@ -104,17 +105,17 @@ private struct LatchChrome: View {
                 )
             )
             .overlay {
-                if hovering && !sunk {
-                    RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .fill(DeckTheme.amber.opacity(isPower ? 0.14 : 0.10))
-                }
+                shape
+                    .fill(DeckTheme.amber.opacity(isPower ? 0.16 : 0.12))
+                    .blendMode(.softLight)
+                    .opacity(hovering && !sunk ? 1 : 0)
             }
             .overlay(alignment: .top) {
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                shape
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(sunk ? 0.08 : (hovering ? 0.30 : 0.18)),
+                                Color.white.opacity(sunk ? 0.08 : (hovering ? 0.22 : 0.16)),
                                 Color.clear
                             ],
                             startPoint: .top,
@@ -124,13 +125,16 @@ private struct LatchChrome: View {
                     .padding(1)
             }
             .overlay {
-                if sunk {
-                    RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .stroke(Color.black.opacity(0.45), lineWidth: 3)
-                        .blur(radius: 1.5)
-                        .padding(1)
-                }
+                shape
+                    .stroke(Color.black.opacity(0.45), lineWidth: 3)
+                    .blur(radius: 1.5)
+                    .padding(1)
+                    .opacity(sunk ? 1 : 0)
             }
+            .overlay {
+                LatchFaceTexture(isPower: isPower, sunk: sunk)
+            }
+            .clipShape(shape)
     }
 
     private func labelColor(sunk: Bool, hovering: Bool) -> Color {
@@ -182,6 +186,93 @@ private struct LatchChrome: View {
             return isPower ? 14 : 8
         }
         return 0
+    }
+}
+
+private struct LatchFaceTexture: View {
+    var isPower: Bool
+    var sunk: Bool
+
+    var body: some View {
+        ZStack {
+            mill
+            Image(nsImage: LatchGrain.image)
+                .interpolation(.medium)
+                .resizable(resizingMode: .tile)
+                .opacity(sunk ? 0.48 : 0.58)
+                .blendMode(.overlay)
+        }
+        .allowsHitTesting(false)
+    }
+
+    private var mill: some View {
+        Canvas { context, size in
+            let step: CGFloat = isPower ? 2.0 : 1.75
+            var y: CGFloat = 0
+            var index = 0
+            let dark = Color.black.opacity(sunk ? 0.10 : 0.16)
+            let lite = Color.white.opacity(sunk ? 0.06 : 0.07)
+            while y < size.height {
+                var path = Path()
+                path.addRect(CGRect(x: 0, y: y, width: size.width, height: 1))
+                context.fill(path, with: .color(index.isMultiple(of: 2) ? dark : lite))
+                y += step
+                index += 1
+            }
+        }
+        .blendMode(.overlay)
+        .opacity(sunk ? 0.72 : 0.88)
+    }
+}
+
+private enum LatchGrain {
+    static let image: NSImage = render()
+
+    private static func render() -> NSImage {
+        let dim = 128
+        var pixels = [UInt8](repeating: 0, count: dim * dim * 4)
+        for i in 0..<(dim * dim) {
+            let speck = mix(i, 0x9E37_79B9)
+            guard speck % 9 == 0 else { continue }
+            let alpha = UInt8(32 + mix(i, 0x85EB_CA6B) % 48)
+            let offset = i * 4
+            if mix(i, 0xC2B2_AE35) & 1 == 0 {
+                pixels[offset] = alpha
+                pixels[offset + 1] = alpha
+                pixels[offset + 2] = alpha
+            }
+            pixels[offset + 3] = alpha
+        }
+        let data = Data(pixels)
+        let space = CGColorSpaceCreateDeviceRGB()
+        guard
+            let provider = CGDataProvider(data: data as CFData),
+            let cgImage = CGImage(
+                width: dim,
+                height: dim,
+                bitsPerComponent: 8,
+                bitsPerPixel: 32,
+                bytesPerRow: dim * 4,
+                space: space,
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                provider: provider,
+                decode: nil,
+                shouldInterpolate: false,
+                intent: .defaultIntent
+            )
+        else {
+            return NSImage()
+        }
+        return NSImage(cgImage: cgImage, size: NSSize(width: 64, height: 64))
+    }
+
+    private static func mix(_ value: Int, _ seed: UInt32) -> Int {
+        var hash = UInt32(truncatingIfNeeded: value) &* 0x85EB_CA6B
+        hash ^= seed
+        hash ^= hash >> 13
+        hash = hash &* 0xC2B2_AE35
+        hash ^= hash >> 16
+        return Int(hash)
     }
 }
 
