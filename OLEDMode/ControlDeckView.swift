@@ -103,8 +103,8 @@ struct ControlDeckView: View {
 
     private var powerBank: some View {
         LatchButton(
-            title: "OLED MODE",
-            subtitle: controller.isPresetActive ? "ON" : "OFF",
+            title: "POWER",
+            subtitle: controller.isPresetActive ? "OLED MODE - ARMED" : "OLED MODE - DISARMED",
             isLatched: controller.isPresetActive,
             isPower: true,
             action: { controller.togglePower() }
