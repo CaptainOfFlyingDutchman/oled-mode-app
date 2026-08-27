@@ -14,7 +14,7 @@ struct LatchButton: View {
             VStack(spacing: isPower ? 6 : 2) {
                 Text(title)
                     .font(DeckTheme.hudFont(isPower ? 18 : 11, weight: .heavy))
-                    .tracking(isPower ? 2.4 : 0.8)
+                    .tracking(isPower ? 4 : 0.8)
                 if let subtitle {
                     Text(subtitle)
                         .font(DeckTheme.hudFont(isPower ? 12 : 8, weight: .bold))

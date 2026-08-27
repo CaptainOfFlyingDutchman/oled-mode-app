@@ -4,7 +4,7 @@ struct ControlDeckView: View {
     @EnvironmentObject private var controller: OLEDController
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        ExpandingGapVStack(spacing: 16) {
             header
             goldRule
             powerBank
@@ -33,14 +33,13 @@ struct ControlDeckView: View {
         .padding(.top, 0)
         .padding(.bottom, 16)
         .frame(width: 448)
-        .fixedSize(horizontal: true, vertical: true)
+        .frame(maxHeight: .infinity)
         .background {
             ZStack {
                 chassis
                 scanlines
             }
         }
-        .background(DeckSizeReporter())
         .ignoresSafeArea(.container, edges: .top)
         .preferredColorScheme(.dark)
         .onAppear { controller.refresh() }
@@ -190,6 +189,44 @@ struct ControlDeckView: View {
             }
         }
         .allowsHitTesting(false)
+    }
+}
+
+private struct ExpandingGapVStack: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let itemProposal = ProposedViewSize(width: proposal.width, height: nil)
+        let sizes = subviews.map { $0.sizeThatFits(itemProposal) }
+        let width = proposal.width ?? sizes.map(\.width).max() ?? 0
+        let compactHeight = sizes.map(\.height).reduce(0, +)
+            + spacing * CGFloat(max(subviews.count - 1, 0))
+        if let proposedHeight = proposal.height, proposedHeight.isFinite, proposedHeight > compactHeight {
+            return CGSize(width: width, height: proposedHeight)
+        }
+        return CGSize(width: width, height: compactHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let itemProposal = ProposedViewSize(width: bounds.width, height: nil)
+        let sizes = subviews.map { $0.sizeThatFits(itemProposal) }
+        let contentHeight = sizes.map(\.height).reduce(0, +)
+        let gapCount = CGFloat(max(subviews.count - 1, 0))
+        let extra = max(bounds.height - contentHeight, 0)
+        let gap = gapCount > 0 ? extra / gapCount : 0
+
+        var y = bounds.minY
+        for index in subviews.indices {
+            subviews[index].place(
+                at: CGPoint(x: bounds.minX, y: y),
+                anchor: .topLeading,
+                proposal: ProposedViewSize(width: bounds.width, height: sizes[index].height)
+            )
+            y += sizes[index].height
+            if index < subviews.count - 1 {
+                y += gap
+            }
+        }
     }
 }
 
