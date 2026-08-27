@@ -308,19 +308,20 @@ struct StatusLED: View {
             Circle()
                 .fill(DeckTheme.recessed)
                 .frame(width: 14, height: 14)
-            Circle()
-                .fill(DeckTheme.textDim.opacity(isOffline ? 0.4 : 0.35))
-                .frame(width: 8, height: 8)
-            Circle()
-                .fill(DeckTheme.amber)
-                .frame(width: 8, height: 8)
-                .shadow(color: DeckTheme.amber.opacity(lit ? 0.9 : 0), radius: 6)
-                .opacity(lit ? 1 : 0)
-            Circle()
-                .fill(DeckTheme.danger)
-                .frame(width: 8, height: 8)
-                .shadow(color: DeckTheme.danger.opacity(isError ? 0.9 : 0), radius: 6)
-                .opacity(isError ? 1 : 0)
+            ZStack {
+                Circle()
+                    .fill(DeckTheme.textDim.opacity(isOffline ? 0.4 : 0.35))
+                Circle()
+                    .fill(DeckTheme.amber)
+                    .shadow(color: DeckTheme.amber.opacity(lit ? 0.9 : 0), radius: 6)
+                    .opacity(lit ? 1 : 0)
+                Circle()
+                    .fill(DeckTheme.danger)
+                    .shadow(color: DeckTheme.danger.opacity(isError ? 0.9 : 0), radius: 6)
+                    .opacity(isError ? 1 : 0)
+                LEDLensGlass(isLit: lit || isError)
+            }
+            .frame(width: 8, height: 8)
         }
         .overlay(
             Circle()
@@ -328,5 +329,119 @@ struct StatusLED: View {
         )
         .animation(reduceMotion ? nil : DeckTheme.Motion.led(lit), value: lit)
         .animation(reduceMotion ? nil : DeckTheme.Motion.led(isError), value: isError)
+    }
+}
+
+private struct LEDLensGlass: View {
+    var isLit: Bool
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color.white.opacity(isLit ? 0.42 : 0.10),
+                            Color.white.opacity(isLit ? 0.10 : 0.03),
+                            Color.clear
+                        ],
+                        center: UnitPoint(x: 0.42, y: 0.38),
+                        startRadius: 0,
+                        endRadius: 4.2
+                    )
+                )
+                .blendMode(.plusLighter)
+
+            Image(nsImage: LEDGrain.image)
+                .interpolation(.medium)
+                .resizable()
+                .clipShape(Circle())
+                .blendMode(.plusLighter)
+                .opacity(isLit ? 0.38 : 0.20)
+
+            Circle()
+                .stroke(Color.white.opacity(isLit ? 0.16 : 0.07), lineWidth: 0.4)
+                .padding(1.6)
+                .blendMode(.plusLighter)
+
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(isLit ? 0.58 : 0.24),
+                            Color.white.opacity(isLit ? 0.12 : 0.06),
+                            Color.clear
+                        ],
+                        startPoint: UnitPoint(x: 0.3, y: 0.05),
+                        endPoint: UnitPoint(x: 0.6, y: 0.62)
+                    )
+                )
+                .padding(0.5)
+                .blendMode(.plusLighter)
+
+            Circle()
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(isLit ? 0.40 : 0.22),
+                            Color.clear
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 0.65
+                )
+                .blendMode(.plusLighter)
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+private enum LEDGrain {
+    static let image: NSImage = render()
+
+    private static func render() -> NSImage {
+        let dim = 32
+        var pixels = [UInt8](repeating: 0, count: dim * dim * 4)
+        for i in 0..<(dim * dim) {
+            let speck = mix(i, 0xA5A5_A5A5)
+            guard speck % 4 == 0 else { continue }
+            let alpha = UInt8(48 + mix(i, 0x7F4A_7C15) % 90)
+            let offset = i * 4
+            pixels[offset] = alpha
+            pixels[offset + 1] = alpha
+            pixels[offset + 2] = alpha
+            pixels[offset + 3] = alpha
+        }
+        let data = Data(pixels)
+        let space = CGColorSpaceCreateDeviceRGB()
+        guard
+            let provider = CGDataProvider(data: data as CFData),
+            let cgImage = CGImage(
+                width: dim,
+                height: dim,
+                bitsPerComponent: 8,
+                bitsPerPixel: 32,
+                bytesPerRow: dim * 4,
+                space: space,
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                provider: provider,
+                decode: nil,
+                shouldInterpolate: false,
+                intent: .defaultIntent
+            )
+        else {
+            return NSImage()
+        }
+        return NSImage(cgImage: cgImage, size: NSSize(width: 8, height: 8))
+    }
+
+    private static func mix(_ value: Int, _ seed: UInt32) -> Int {
+        var hash = UInt32(truncatingIfNeeded: value) &* 0x85EB_CA6B
+        hash ^= seed
+        hash ^= hash >> 13
+        hash = hash &* 0xC2B2_AE35
+        hash ^= hash >> 16
+        return Int(hash)
     }
 }
