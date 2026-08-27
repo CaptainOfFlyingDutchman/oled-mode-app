@@ -58,20 +58,24 @@ private struct LatchChrome: View {
     var isPower: Bool
     var isEnabled: Bool
     @State private var isHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let sunk = isLatched || configuration.isPressed
         let hovering = isHovered && isEnabled
         let radius: CGFloat = isPower ? 18 : 8
         configuration.label
-            .foregroundStyle(labelColor(sunk: sunk, hovering: hovering))
+            .foregroundStyle(labelColor(hovering: hovering))
             .background(face(sunk: sunk, hovering: hovering))
             .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(rimColor(sunk: sunk, hovering: hovering), lineWidth: rimWidth(hovering: hovering))
+                    .strokeBorder(rimColor(hovering: hovering), lineWidth: rimWidth(hovering: hovering))
             }
-            .shadow(color: glowColor(sunk: sunk, hovering: hovering), radius: glowRadius(sunk: sunk, hovering: hovering))
+            .shadow(
+                color: DeckTheme.amber.opacity(glowOpacity(hovering: hovering)),
+                radius: glowRadius(hovering: hovering)
+            )
             .shadow(
                 color: Color.black.opacity(sunk ? 0.2 : 0.55),
                 radius: sunk ? 1 : 4,
@@ -85,7 +89,9 @@ private struct LatchChrome: View {
                 updateCursor(hovering: hovering)
             }
             .onDisappear { updateCursor(hovering: false) }
-            .animation(.easeOut(duration: 0.14), value: isHovered)
+            .animation(reduceMotion ? nil : DeckTheme.Motion.hover, value: isHovered)
+            .animation(reduceMotion ? nil : DeckTheme.Motion.press, value: configuration.isPressed)
+            .animation(reduceMotion ? nil : DeckTheme.Motion.latch(isLatched), value: isLatched)
     }
 
     private func face(sunk: Bool, hovering: Bool) -> some View {
@@ -94,28 +100,42 @@ private struct LatchChrome: View {
         return shape
             .fill(
                 LinearGradient(
-                    colors: sunk
-                        ? [
-                            DeckTheme.amber.opacity(hovering && isLatched ? 1 : 0.95),
-                            hovering && isLatched ? DeckTheme.amber.opacity(0.52) : DeckTheme.amberDim
-                          ]
-                        : [DeckTheme.raisedTop, DeckTheme.raisedBottom],
+                    colors: [DeckTheme.raisedTop, DeckTheme.raisedBottom],
                     startPoint: .top,
                     endPoint: .bottom
                 )
             )
             .overlay {
                 shape
+                    .fill(Color.black.opacity(0.22))
+                    .opacity(sunk && !isLatched ? 1 : 0)
+            }
+            .overlay {
+                shape
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                DeckTheme.amber.opacity(hovering ? 1 : 0.95),
+                                hovering ? DeckTheme.amber.opacity(0.52) : DeckTheme.amberDim
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .opacity(isLatched ? 1 : 0)
+            }
+            .overlay {
+                shape
                     .fill(DeckTheme.amber.opacity(isPower ? 0.16 : 0.12))
                     .blendMode(.softLight)
-                    .opacity(hovering && !sunk ? 1 : 0)
+                    .opacity(hovering && !isLatched ? 1 : 0)
             }
             .overlay(alignment: .top) {
                 shape
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(sunk ? 0.08 : (hovering ? 0.22 : 0.16)),
+                                Color.white.opacity(isLatched ? 0.08 : (hovering ? 0.22 : 0.16)),
                                 Color.clear
                             ],
                             startPoint: .top,
@@ -137,20 +157,20 @@ private struct LatchChrome: View {
             .clipShape(shape)
     }
 
-    private func labelColor(sunk: Bool, hovering: Bool) -> Color {
+    private func labelColor(hovering: Bool) -> Color {
         if !isEnabled { return DeckTheme.textDim }
-        if sunk { return DeckTheme.chassisDeep }
+        if isLatched { return DeckTheme.chassisDeep }
         return hovering ? DeckTheme.amberHot : DeckTheme.text
     }
 
-    private func rimColor(sunk: Bool, hovering: Bool) -> Color {
+    private func rimColor(hovering: Bool) -> Color {
         if hovering {
-            return sunk ? DeckTheme.amberHot : DeckTheme.amber.opacity(0.75)
+            return isLatched ? DeckTheme.amberHot : DeckTheme.amber.opacity(0.75)
         }
         if isLatched && !isPower {
             return DeckTheme.amberHot.opacity(0.9)
         }
-        return .clear
+        return DeckTheme.amber.opacity(0)
     }
 
     private func rimWidth(hovering: Bool) -> CGFloat {
@@ -167,25 +187,25 @@ private struct LatchChrome: View {
         }
     }
 
-    private func glowColor(sunk: Bool, hovering: Bool) -> Color {
-        guard isEnabled else { return .clear }
-        if sunk && isLatched {
-            return DeckTheme.amber.opacity(hovering ? (isPower ? 0.85 : 0.62) : (isPower ? 0.65 : 0.45))
+    private func glowOpacity(hovering: Bool) -> CGFloat {
+        guard isEnabled else { return 0 }
+        if isLatched {
+            return hovering ? (isPower ? 0.85 : 0.62) : (isPower ? 0.65 : 0.45)
         }
         if hovering {
-            return DeckTheme.amber.opacity(isPower ? 0.38 : 0.22)
+            return isPower ? 0.38 : 0.22
         }
-        return .clear
+        return 0
     }
 
-    private func glowRadius(sunk: Bool, hovering: Bool) -> CGFloat {
-        if sunk && isLatched {
+    private func glowRadius(hovering: Bool) -> CGFloat {
+        if isLatched {
             return (isPower ? 16 : 8) + (hovering ? 6 : 0)
         }
         if hovering {
             return isPower ? 14 : 8
         }
-        return 0
+        return isPower ? 10 : 6
     }
 }
 
@@ -280,32 +300,33 @@ struct StatusLED: View {
     var isOn: Bool
     var isOffline: Bool = false
     var isError: Bool = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        let lit = isOn && !isOffline && !isError
         ZStack {
             Circle()
                 .fill(DeckTheme.recessed)
                 .frame(width: 14, height: 14)
             Circle()
-                .fill(ledColor)
+                .fill(DeckTheme.textDim.opacity(isOffline ? 0.4 : 0.35))
                 .frame(width: 8, height: 8)
-                .shadow(color: glowColor, radius: 6)
+            Circle()
+                .fill(DeckTheme.amber)
+                .frame(width: 8, height: 8)
+                .shadow(color: DeckTheme.amber.opacity(lit ? 0.9 : 0), radius: 6)
+                .opacity(lit ? 1 : 0)
+            Circle()
+                .fill(DeckTheme.danger)
+                .frame(width: 8, height: 8)
+                .shadow(color: DeckTheme.danger.opacity(isError ? 0.9 : 0), radius: 6)
+                .opacity(isError ? 1 : 0)
         }
         .overlay(
             Circle()
                 .stroke(DeckTheme.bezel.opacity(0.7), lineWidth: 1)
         )
-    }
-
-    private var ledColor: Color {
-        if isError { return DeckTheme.danger }
-        if isOffline { return DeckTheme.textDim.opacity(0.4) }
-        return isOn ? DeckTheme.amber : DeckTheme.textDim.opacity(0.35)
-    }
-
-    private var glowColor: Color {
-        if isError { return DeckTheme.danger.opacity(0.9) }
-        if isOn && !isOffline { return DeckTheme.amber.opacity(0.9) }
-        return .clear
+        .animation(reduceMotion ? nil : DeckTheme.Motion.led(lit), value: lit)
+        .animation(reduceMotion ? nil : DeckTheme.Motion.led(isError), value: isError)
     }
 }

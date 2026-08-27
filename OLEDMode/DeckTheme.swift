@@ -17,4 +17,21 @@ enum DeckTheme {
     static func hudFont(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
         .system(size: size, weight: weight, design: .monospaced)
     }
+
+    enum Motion {
+        static let hover = Animation.easeOut(duration: 0.14)
+        static let press = Animation.easeOut(duration: 0.08)
+
+        static func latch(_ on: Bool) -> Animation {
+            on
+                ? .easeOut(duration: 0.24)
+                : .easeIn(duration: 0.32)
+        }
+
+        static func led(_ on: Bool) -> Animation {
+            on
+                ? .easeOut(duration: 0.18)
+                : .easeIn(duration: 0.28)
+        }
+    }
 }
