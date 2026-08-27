@@ -19,6 +19,7 @@ struct LatchButton: View {
                     Text(subtitle)
                         .font(DeckTheme.hudFont(isPower ? 12 : 8, weight: .bold))
                         .tracking(1.2)
+                        .contentTransition(.opacity)
                 }
             }
             .frame(maxWidth: .infinity)

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ControlDeckView: View {
     @EnvironmentObject private var controller: OLEDController
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ExpandingGapVStack(spacing: 16) {
@@ -174,6 +175,11 @@ struct ControlDeckView: View {
                 .font(DeckTheme.hudFont(9, weight: .bold))
                 .tracking(1.1)
                 .foregroundStyle(controller.automationDenied ? DeckTheme.danger : DeckTheme.textDim)
+                .contentTransition(.opacity)
+                .animation(
+                    reduceMotion ? nil : DeckTheme.Motion.latch(controller.isPresetActive),
+                    value: controller.footerText
+                )
             Spacer()
         }
     }
