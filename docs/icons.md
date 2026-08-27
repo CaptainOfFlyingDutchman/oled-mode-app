@@ -85,7 +85,7 @@ The product is `build/Build/Products/Debug/OLED Mode.app`. A Release build lands
 
 ## Dock still shows the old icon
 
-macOS caches Dock tiles by **bundle ID** (`com.local.oled-mode`). `killall Dock` alone is usually not enough. The running tile is also the icon from **process launch**, so a long-lived Xcode Run keeps the old mark until that process dies.
+macOS caches Dock tiles by **bundle ID** (`com.manvendrask.oled-mode`). `killall Dock` alone is usually not enough. The running tile is also the icon from **process launch**, so a long-lived Xcode Run keeps the old mark until that process dies.
 
 There are often several copies of the same app. Launch Services / Dock may keep showing whichever one launched first:
 
